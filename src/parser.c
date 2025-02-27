@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,12 +42,18 @@ Command* parse_command(const char *input) {
             if (token)
                 cmd->error_file = strdup(token);
         } else if (strcmp(token, "|") == 0) {
-            // We simply count the pipes here; piping is handled in the pipeline module.
+            // pipecounter
             cmd->pipe_count++;
         } else {
             cmd->args[arg_index++] = strdup(token);
         }
         token = strtok(NULL, " ");
+    }
+    if (arg_index == 0) {
+        // no command specified
+        fprintf(stderr, "Error: No command specified.\n");
+        free_command(cmd);
+        return NULL;
     }
     cmd->args[arg_index] = NULL;
     free(input_copy);
