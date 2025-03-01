@@ -88,14 +88,16 @@ void execute_pipeline(const char *input) {
                 }
             }
             if (cmd->output_file) {
-                if (redirect_output(cmd->output_file) != 0)
+                if (redirect_output(cmd->output_file) != 0){
                     free_command(cmd);
                     exit(EXIT_FAILURE);
+                }
             }
             if (cmd->error_file) {
-                if (redirect_error(cmd->error_file) != 0)
+                if (redirect_error(cmd->error_file) != 0){
                     free_command(cmd);
                     exit(EXIT_FAILURE);
+                }
             }
 
             if (execvp(cmd->args[0], cmd->args) < 0) {
