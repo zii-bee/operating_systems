@@ -82,9 +82,10 @@ void execute_pipeline(const char *input) {
 
             // handle redirects
             if (cmd->input_file) {
-                if (redirect_input(cmd->input_file) != 0)
+                if (redirect_input(cmd->input_file) != 0){
                     free_command(cmd);
                     exit(EXIT_FAILURE);
+                }
             }
             if (cmd->output_file) {
                 if (redirect_output(cmd->output_file) != 0)
