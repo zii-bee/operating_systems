@@ -49,7 +49,7 @@ Command* parse_command(const char *input) {
         }
         token = strtok(NULL, " ");
     }
-    if (arg_index == 0) {
+    if (arg_index == 0 || cmd->args[0] == NULL) {
         // no command specified
         fprintf(stderr, "Error: No command specified.\n");
         free_command(cmd);

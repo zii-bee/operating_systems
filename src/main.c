@@ -24,6 +24,10 @@ int main() {
 
         // if the input contains a pipe, delegate to the pipeline executor.
         if (strchr(input, '|')) {
+            if (strstr(input, "||") != NULL) {
+                fprintf(stderr, "Error: Empty command between pipes.\n");
+                continue;
+            }
             execute_pipeline(input);
             continue;
         }

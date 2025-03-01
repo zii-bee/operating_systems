@@ -68,12 +68,12 @@ void execute_pipeline(const char *input) {
                     exit(EXIT_FAILURE);
                 }
             }
-            // close all pipe file descriptors in the child.
+            // close all pipe file descriptors in the child
             for (int j = 0; j < 2 * (num_commands - 1); j++) {
                 close(pipefds[j]);
             }
 
-            // parse the individual command.
+            // parse the individual command
             Command *cmd = parse_command(commands[i]);
             if (!cmd) {
                 fprintf(stderr, "Parsing error in pipeline command.\n");
@@ -83,14 +83,17 @@ void execute_pipeline(const char *input) {
             // handle redirects
             if (cmd->input_file) {
                 if (redirect_input(cmd->input_file) != 0)
+                    free_command(cmd);
                     exit(EXIT_FAILURE);
             }
             if (cmd->output_file) {
                 if (redirect_output(cmd->output_file) != 0)
+                    free_command(cmd);
                     exit(EXIT_FAILURE);
             }
             if (cmd->error_file) {
                 if (redirect_error(cmd->error_file) != 0)
+                    free_command(cmd);
                     exit(EXIT_FAILURE);
             }
 
