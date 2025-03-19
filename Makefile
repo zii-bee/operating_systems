@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -Iinclude
-SRC = src/main.c src/parser.c src/executor.c src/redirection.c src/pipes.c src/error_handling.c
+SRC = src/main.c src/parser.c src/executor.c src/redirection.c src/pipes.c src/error_handling.c src/server.c src/client.c
 OBJ = $(SRC:.c=.o)
 TARGET = myshell
 
