@@ -14,11 +14,11 @@
 #define BACKLOG 5
 
 void execute_shell_command(int client_socket, const char *input) {
-    if (!input || strlen(input) == 0 || strspn(input, " \t\n") == strlen(input)) {
-        send(client_socket, "\n", 1, 0);
-        return;
-    }
-    
+    // if (!input || strlen(input) == 0 || strspn(input, " \t\n") == strlen(input)) {
+    //     send(client_socket, "\n", 1, 0);
+    //     return;
+    // }
+
     printf("Executing command: \"%s\"\n", input);
     
     // Redirect stdout and stderr to capture the output
