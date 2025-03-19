@@ -81,8 +81,8 @@ void execute_shell_command(int client_socket, const char *input) {
         printf("Sent %zd bytes of response\n", bytes_read);
     } else {
         // Send a newline as a response when there's no output
-        send(client_socket, "\n", 1, 0);
-        printf("Sent newline response (command had no output)\n");
+        const char *empty_response = "";
+        send(client_socket, empty_response, 0, 0);
     }
 }
 
