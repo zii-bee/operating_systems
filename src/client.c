@@ -77,7 +77,7 @@ void start_client(const char *ip, int port) {
         // Send command to server, including empty commands
         if (send(client_socket, input, strlen(input), 0) < 0) {
             perror("send");
-            break;
+            continue;
         }
         
         // Receive response from server

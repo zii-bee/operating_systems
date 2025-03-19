@@ -72,7 +72,7 @@ void execute_shell_command(int client_socket, const char *input) {
     ssize_t bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1);
     close(pipefd[0]);
     
-    if (bytes_read > 0) {
+    if (bytes_read >= 0) {
         buffer[bytes_read] = '\0';
         // Print the output for server logs
         printf("Command output:\n%s", buffer);
