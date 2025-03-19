@@ -79,6 +79,7 @@ void start_client(const char *ip, int port) {
         // Receive response from server
         ssize_t bytes_received = recv(client_socket, output, sizeof(output) - 1, 0);
         if (bytes_received < 0) {
+            printf("Error receiving data from server\n");
             perror("recv");
             break;
         }
