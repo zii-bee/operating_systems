@@ -157,15 +157,19 @@ void start_server(int port) {
                 break;
             }
             
-            printf("--------------------------------------\n");
-            printf("Command received from %s:%d: \"%s\"\n", client_ip, client_port, input);
-            printf("Processing command...\n");
+            if (strlen(input) > 0) {
+                printf("--------------------------------------\n");
+                printf("Command received from %s:%d: \"%s\"\n", client_ip, client_port, input);
+                printf("Processing command...\n");
+            }
             
             // Execute the command
             execute_shell_command(client_socket, input);
             
-            printf("Response sent to %s:%d\n", client_ip, client_port);
-            printf("--------------------------------------\n");
+            if (strlen(input) > 0) {
+                printf("Response sent to %s:%d\n", client_ip, client_port);
+                printf("--------------------------------------\n");
+            }
         }
         
         if (bytes_received <= 0 && bytes_received != -1) {
