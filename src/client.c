@@ -71,9 +71,6 @@ void start_client(const char *ip, int port) {
         // Receive response from server
         ssize_t bytes_received = recv(client_socket, output, sizeof(output) - 1, 0);
         if (bytes_received <= 0) {
-            // testing with this command
-            
-            send(client_socket, input, strlen(input), 0);
             perror("recv");
             break;
         }
