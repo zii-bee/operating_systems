@@ -28,10 +28,7 @@ Command* parse_command(const char *input) {
 
     // create a duplicate of the input so we can modify it safely
     char *input_copy = strdup(input);
-    if (!input_copy) {
-        perror("strdup");
-        free(cmd->args);
-        free(cmd);
+    if (!input || strlen(input) == 0 || strspn(input, " \t\n") == strlen(input)) {
         return NULL;
     }
 
