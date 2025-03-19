@@ -7,6 +7,9 @@
 #include "redirection.h"
 
 void execute_command(Command *cmd) {
+    if (handle_builtin_command(cmd)) {
+        return;
+    }
     pid_t pid = fork();
     if (pid < 0) {
         perror("fork");
@@ -40,4 +43,20 @@ void execute_command(Command *cmd) {
         int status;
         waitpid(pid, &status, 0);
     }
+}
+
+int handle_builtin_command(Command *cmd) {
+    if (strcmp(cmd->args[0], "cd") == 0) {
+        // Change directory
+        if (cmd->args[1] == NULL) {
+            // No arguments, change to home directory
+            chdir(getenv("HOME"));
+        } else {
+            if (chdir(cmd->args[1]) != 0) {
+                perror("cd");
+            }
+        }
+        return 1; // Command was handled
+    }
+    return 0; // Not a built-in command
 }

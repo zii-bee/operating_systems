@@ -28,7 +28,7 @@ void start_client(const char *ip, int port) {
     
     // Convert IP address from string to binary form
     if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
-        perror("inet_pton");
+        fprintf(stderr, "Invalid IP address format\n");
         close(client_socket);
         exit(EXIT_FAILURE);
     }
