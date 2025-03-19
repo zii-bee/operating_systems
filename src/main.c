@@ -74,6 +74,11 @@ int main(int argc, char *argv[]) {
             break;
         }
 
+        // skip empty input
+        if(strlen(input) == 0 || strspn(input, " \t") == strlen(input)) {
+            continue;
+        }
+
         // if the input contains a pipe, delegate to the pipeline executor.
         if (strchr(input, '|')) {
             if (strstr(input, "||") != NULL) {
