@@ -15,11 +15,11 @@
 
 void execute_shell_command(int client_socket, const char *input) {
     // Check for empty input or only whitespace
-    if (!input || strlen(input) == 0 || strspn(input, " \t\n") == strlen(input)) {
-        // Send a newline character as a response to empty input
-        send(client_socket, "\n", 1, 0);
-        return;
-    }
+    // if (!input || strlen(input) == 0 || strspn(input, " \t\n") == strlen(input)) {
+    //     // Send a newline character as a response to empty input
+    //     send(client_socket, "\n", 1, 0);
+    //     return;
+    // }
 
     printf("Executing command: \"%s\"\n", input);
     
