@@ -69,6 +69,10 @@ void start_client(const char *ip, int port) {
             
             break;
         }
+
+        if (strlen(input) == 0) {
+            continue;  // Skip sending empty input to server
+        }
         
         // Send command to server, including empty commands
         if (send(client_socket, input, strlen(input), 0) < 0) {
