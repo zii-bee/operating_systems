@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include "pipes.h"
 #include "parser.h"
 #include "redirection.h"
@@ -101,7 +102,11 @@ void execute_pipeline(const char *input) {
             }
 
             if (execvp(cmd->args[0], cmd->args) < 0) {
-                perror("execvp");
+                if (errno == ENOENT) {
+                    fprintf(stderr, "Command not found: %s\n", cmd->args[0]);
+                } else {
+                    perror("execvp");
+                }
                 free_command(cmd);
                 exit(EXIT_FAILURE);
             }

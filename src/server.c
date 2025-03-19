@@ -14,6 +14,8 @@
 #define BACKLOG 5
 
 void execute_shell_command(int client_socket, const char *input) {
+    printf("Executing command: \"%s\"\n", input);
+    
     // Redirect stdout and stderr to capture the output
     int stdout_backup = dup(STDOUT_FILENO);
     int stderr_backup = dup(STDERR_FILENO);
@@ -65,11 +67,15 @@ void execute_shell_command(int client_socket, const char *input) {
     
     if (bytes_read > 0) {
         buffer[bytes_read] = '\0';
+        // Print the output for server logs
+        printf("Command output:\n%s", buffer);
         // Send the output to the client
         send(client_socket, buffer, bytes_read, 0);
+        printf("Sent %zd bytes of response\n", bytes_read);
     } else {
         // Send an empty response if there's no output
         send(client_socket, "", 1, 0);
+        printf("Sent empty response (command had no output)\n");
     }
 }
 
@@ -125,7 +131,11 @@ void start_server(int port) {
         
         char client_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, sizeof(client_ip));
-        printf("Client connected: %s:%d\n", client_ip, ntohs(client_addr.sin_port));
+        int client_port = ntohs(client_addr.sin_port);
+        
+        printf("======================================\n");
+        printf("New client connected: %s:%d\n", client_ip, client_port);
+        printf("======================================\n");
         
         // Handle client communication
         char input[MAX_INPUT_SIZE];
@@ -136,16 +146,26 @@ void start_server(int port) {
             
             // Check if client wants to exit
             if (strcmp(input, "exit") == 0) {
-                printf("Client disconnected: %s:%d\n", client_ip, ntohs(client_addr.sin_port));
+                printf("Client %s:%d requested to exit\n", client_ip, client_port);
+                printf("Client disconnected: %s:%d\n", client_ip, client_port);
+                printf("======================================\n");
                 break;
             }
             
-            printf("Command received from %s:%d: %s\n", client_ip, ntohs(client_addr.sin_port), input);
+            printf("--------------------------------------\n");
+            printf("Command received from %s:%d: \"%s\"\n", client_ip, client_port, input);
+            printf("Processing command...\n");
             
             // Execute the command
             execute_shell_command(client_socket, input);
             
-            printf("Response sent to %s:%d\n", client_ip, ntohs(client_addr.sin_port));
+            printf("Response sent to %s:%d\n", client_ip, client_port);
+            printf("--------------------------------------\n");
+        }
+        
+        if (bytes_received <= 0 && bytes_received != -1) {
+            printf("Client disconnected unexpectedly: %s:%d\n", client_ip, client_port);
+            printf("======================================\n");
         }
         
         close(client_socket);
