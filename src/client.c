@@ -14,26 +14,26 @@ void start_client(const char *ip, int port) {
     int client_socket;
     struct sockaddr_in server_addr;
     
-    // Create socket
+    // create socket
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
     if (client_socket < 0) {
         perror("socket");
         exit(EXIT_FAILURE);
     }
     
-    // Configure server address
+    // configure server address
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
     
-    // Convert IP address from string to binary form
+    // convert IP address from string to binary form
     if (inet_pton(AF_INET, ip, &server_addr.sin_addr) <= 0) {
         fprintf(stderr, "Invalid IP address format\n");
         close(client_socket);
         exit(EXIT_FAILURE);
     }
     
-    // Connect to server
+    // connect to server
     if (connect(client_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("connect");
         close(client_socket);
@@ -46,21 +46,21 @@ void start_client(const char *ip, int port) {
     char output[MAX_OUTPUT_SIZE];
     
     while (1) {
-        // Display prompt and get user input
+        // display prompt and get user input
         printf("$ ");
         if (!fgets(input, sizeof(input), stdin)) {
             break;
         }
         
-        // Remove trailing newline
+        // remove trailing newline
         input[strcspn(input, "\n")] = 0;
         
-        // Check if user wants to exit
+        // check if user wants to exit
         if (strcmp(input, "exit") == 0) {
-            // Send exit command to server before closing
+            // send exit command to server before closing
             send(client_socket, input, strlen(input), 0);
             
-            // Wait for server's goodbye message
+            // wait for server's goodbye message
             ssize_t bytes_received = recv(client_socket, output, sizeof(output) - 1, 0);
             if (bytes_received > 0) {
                 output[bytes_received] = '\0';
@@ -71,16 +71,16 @@ void start_client(const char *ip, int port) {
         }
 
         if (strlen(input) == 0) {
-            continue;  // Skip sending empty input to server
+            continue;  // skip sending empty input to server
         }
         
-        // Send command to server, including empty commands
+        // send command to server, including empty commands
         if (send(client_socket, input, strlen(input), 0) < 0) {
             perror("send");
             continue;
         }
         
-        // Receive response from server
+        // receive response from server
         ssize_t bytes_received = recv(client_socket, output, sizeof(output) - 1, 0);
         if (bytes_received < 0) {
             printf("Error receiving data from server\n");
@@ -93,7 +93,7 @@ void start_client(const char *ip, int port) {
             break;
         }
         
-        // Display the output
+        // display the output
         output[bytes_received] = '\0';
         printf("%s", output);
     }
