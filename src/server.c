@@ -14,7 +14,9 @@
 #define BACKLOG 5
 
 void execute_shell_command(int client_socket, const char *input) {
+    // Check for empty input or only whitespace
     if (!input || strlen(input) == 0 || strspn(input, " \t\n") == strlen(input)) {
+        // Send a newline character as a response to empty input
         send(client_socket, "\n", 1, 0);
         return;
     }
@@ -78,9 +80,9 @@ void execute_shell_command(int client_socket, const char *input) {
         send(client_socket, buffer, bytes_read, 0);
         printf("Sent %zd bytes of response\n", bytes_read);
     } else {
-        // Send an empty response if there's no output
-        send(client_socket, "", 1, 0);
-        printf("Sent empty response (command had no output)\n");
+        // Send a newline as a response when there's no output
+        send(client_socket, "\n", 1, 0);
+        printf("Sent newline response (command had no output)\n");
     }
 }
 
@@ -152,28 +154,31 @@ void start_server(int port) {
             // Check if client wants to exit
             if (strcmp(input, "exit") == 0) {
                 printf("Client %s:%d requested to exit\n", client_ip, client_port);
+                send(client_socket, "Goodbye!\n", 9, 0);
                 printf("Client disconnected: %s:%d\n", client_ip, client_port);
                 printf("======================================\n");
                 break;
             }
             
-            if (strlen(input) > 0) {
-                printf("--------------------------------------\n");
-                printf("Command received from %s:%d: \"%s\"\n", client_ip, client_port, input);
-                printf("Processing command...\n");
-            }
+            // Log the command regardless of whether it's empty or not
+            printf("--------------------------------------\n");
+            printf("Command received from %s:%d: \"%s\"\n", client_ip, client_port, input);
+            printf("Processing command...\n");
             
             // Execute the command
             execute_shell_command(client_socket, input);
             
-            if (strlen(input) > 0) {
-                printf("Response sent to %s:%d\n", client_ip, client_port);
-                printf("--------------------------------------\n");
-            }
+            printf("Response sent to %s:%d\n", client_ip, client_port);
+            printf("--------------------------------------\n");
         }
         
-        if (bytes_received <= 0 && bytes_received != -1) {
-            printf("Client disconnected unexpectedly: %s:%d\n", client_ip, client_port);
+        if (bytes_received <= 0) {
+            if (bytes_received == 0) {
+                printf("Client disconnected: %s:%d\n", client_ip, client_port);
+            } else {
+                perror("recv");
+                printf("Error receiving from client %s:%d\n", client_ip, client_port);
+            }
             printf("======================================\n");
         }
         

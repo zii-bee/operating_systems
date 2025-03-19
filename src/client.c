@@ -59,10 +59,18 @@ void start_client(const char *ip, int port) {
         if (strcmp(input, "exit") == 0) {
             // Send exit command to server before closing
             send(client_socket, input, strlen(input), 0);
+            
+            // Wait for server's goodbye message
+            ssize_t bytes_received = recv(client_socket, output, sizeof(output) - 1, 0);
+            if (bytes_received > 0) {
+                output[bytes_received] = '\0';
+                printf("%s", output);
+            }
+            
             break;
         }
         
-        // Send command to server
+        // Send command to server, including empty commands
         if (send(client_socket, input, strlen(input), 0) < 0) {
             perror("send");
             break;
@@ -70,8 +78,13 @@ void start_client(const char *ip, int port) {
         
         // Receive response from server
         ssize_t bytes_received = recv(client_socket, output, sizeof(output) - 1, 0);
-        if (bytes_received <= 0) {
+        if (bytes_received < 0) {
             perror("recv");
+            break;
+        }
+        
+        if (bytes_received == 0) {
+            printf("Server closed connection\n");
             break;
         }
         
