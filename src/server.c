@@ -74,6 +74,18 @@ void execute_shell_command(int client_socket, const char *input) {
     
     if (bytes_read > 0) {
         buffer[bytes_read] = '\0';
+        int is_error = (strstr(buffer, "Error:") != NULL || 
+                        strstr(buffer, "not found") != NULL ||
+                        strstr(buffer, "Parsing error") != NULL);
+        
+        if (is_error) {
+            // Log error message
+            printf("[ERROR] %s", buffer);
+            printf("[OUTPUT] Sending error message to client: %s", buffer);
+        } else {
+            // Log normal output
+            printf("[OUTPUT] Sending output to client:\n%s", buffer);
+        }
         // print the output for server logs
         printf("[OUTPUT] Sending output to client:\n%s", buffer);
         // send the output to the client
@@ -159,7 +171,6 @@ void start_server(int port) {
             // log the commands and actions on the server side
             printf("--------------------------------------\n");
             printf("[RECEIVED] Received command: \"%s\" from client %d:%s: \n", input, client_port, client_ip);
-            printf("[EXECUTING] Executing command: \"%s\"\n", input);
             
             // execute the command
             execute_shell_command(client_socket, input);
