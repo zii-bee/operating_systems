@@ -158,7 +158,7 @@ void start_server(int port) {
             
             // log the commands and actions on the server side
             printf("--------------------------------------\n");
-            printf("[RECEIVED] Received command: \"%s\" from client %s:%d: \n", input, client_port, client_ip);
+            printf("[RECEIVED] Received command: \"%s\" from client %d:%s: \n", input, client_port, client_ip);
             printf("[EXECUTING] Executing command: \"%s\"\n", input);
             
             // execute the command
