@@ -10,13 +10,18 @@
 #include "pipes.h"
 #include "server.h"
 
+// Color constants
+#define COLOR_RESET "\033[0m"
+#define COLOR_BLUE "\033[1;34m"
+#define COLOR_GREY "\033[90m"
+
 // maximum size of input buffer
 #define MAX_INPUT_SIZE 1024
 #define BACKLOG 5 // maximum number of pending connections
 
 void execute_shell_command(int client_socket, const char *input) {
 
-    printf("[EXECUTING] Executing command: \"%s\"\n", input);
+    printf(COLOR_GREY "[EXECUTING]" COLOR_RESET " Executing command: \"%s\"\n", input);
     
     // redirect stdout and stderr to capture the output
     int stdout_backup = dup(STDOUT_FILENO);
@@ -37,7 +42,7 @@ void execute_shell_command(int client_socket, const char *input) {
     // execute the command using existing shell implementation
     if (strchr(input, '|')) {
         if (strstr(input, "||") != NULL) {
-            fprintf(stderr, "Error: Empty command between pipes.\n");
+            fprintf(stderr, COLOR_GREY "[ERROR]" COLOR_RESET " Error: Empty command between pipes.\n");
         } else {
             execute_pipeline(input);
         }
@@ -48,7 +53,7 @@ void execute_shell_command(int client_socket, const char *input) {
             execute_command(cmd);
             free_command(cmd);
         } else {
-            fprintf(stderr, "Parsing error.\n");
+            fprintf(stderr, COLOR_GREY "[ERROR]" COLOR_RESET " Parsing error.\n");
         }
     }
     
@@ -78,8 +83,8 @@ void execute_shell_command(int client_socket, const char *input) {
         
         if (is_error) { // if it's an error, send the error message to the client
             // log error message
-            printf("[ERROR] %s", buffer);
-            printf("[OUTPUT] Sending error message to client: \"%s\"", buffer);
+            printf(COLOR_GREY "[ERROR]" COLOR_RESET " %s", buffer);
+            printf(COLOR_GREY "[OUTPUT]" COLOR_RESET " Sending error message to client: \"%s\"", buffer);
             send(client_socket, buffer, bytes_read, 0);
         } else if (strcmp(input, "ls") == 0){ // ls output is formatted differently because no newline between items
             char processed_buffer[MAX_INPUT_SIZE];
@@ -96,17 +101,17 @@ void execute_shell_command(int client_socket, const char *input) {
             processed_buffer[j] = '\0'; // null-terminate the processed buffer
             
             // send the processed output
-            printf("[OUTPUT] Sending output to client:\n%s", processed_buffer);
+            printf(COLOR_GREY "[OUTPUT]" COLOR_RESET " Sending output to client:\n%s", processed_buffer);
             send(client_socket, processed_buffer, j, 0);
         }
         else {
             // log normal output
-            printf("[OUTPUT] Sending output to client:\n%s", buffer);
+            printf(COLOR_GREY "[OUTPUT]" COLOR_RESET " Sending output to client:\n%s", buffer);
             send(client_socket, buffer, bytes_read, 0);
         }
     // if there's no output, send an empty response
     } else {
-        printf("[OUTPUT] Sending empty response (command had no output)\n");
+        printf(COLOR_GREY "[OUTPUT]" COLOR_RESET " Sending empty response (command had no output)\n");
         send(client_socket, "", 1, 0); // send an empty response
     }
 }
@@ -152,8 +157,8 @@ void start_server(int port) {
         close(server_socket);
         exit(EXIT_FAILURE);
     }
-    // print server info
-    printf("[INFO] Server started, waiting for client connections...\n");
+    // print server info with "for" in blue
+    printf(COLOR_GREY "[INFO]" COLOR_RESET " Server started, waiting " COLOR_BLUE "for" COLOR_RESET " client connections...\n");
     
     while (1) {
         // accept connection
@@ -167,7 +172,7 @@ void start_server(int port) {
         inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, sizeof(client_ip));
         int client_port = ntohs(client_addr.sin_port);
 
-        printf("[INFO] Client connected: %s:%d\n", client_ip, client_port);
+        printf(COLOR_GREY "[INFO]" COLOR_RESET " Client connected: %s:%d\n", client_ip, client_port);
         
         // handle client communication
         char input[MAX_INPUT_SIZE];
@@ -179,14 +184,14 @@ void start_server(int port) {
             
             // check if client wants to exit
             if (strcmp(input, "exit") == 0) {
-                printf("[INFO] Client %s:%d requested to exit\n", client_ip, client_port);
+                printf(COLOR_GREY "[INFO]" COLOR_RESET " Client %s:%d requested to exit\n", client_ip, client_port);
                 send(client_socket, "Goodbye!\n", 9, 0);
-                printf("[INFO] Client disconnected: %s:%d\n", client_ip, client_port);
+                printf(COLOR_GREY "[INFO]" COLOR_RESET " Client disconnected: %s:%d\n", client_ip, client_port);
                 break;
             }
             
-            // log the commands and actions on the server side
-            printf("[RECEIVED] Received command: \"%s\" from client %d:%s: \n", input, client_port, client_ip);
+            // log the commands and actions on the server side, with "from" in blue
+            printf(COLOR_GREY "[RECEIVED]" COLOR_RESET " Received command: \"%s\" " COLOR_BLUE "from" COLOR_RESET " client %d:%s: \n", input, client_port, client_ip);
             
             // execute the command
             execute_shell_command(client_socket, input);
@@ -195,10 +200,10 @@ void start_server(int port) {
         // check if there was an error receiving data
         if (bytes_received <= 0) {
             if (bytes_received == 0) {
-                printf("[INFO] Client disconnected: %s:%d\n", client_ip, client_port);
+                printf(COLOR_GREY "[INFO]" COLOR_RESET " Client disconnected: %s:%d\n", client_ip, client_port);
             } else {
                 perror("recv");
-                printf("[ERROR] Error receiving from client %s:%d\n", client_ip, client_port);
+                printf(COLOR_GREY "[ERROR]" COLOR_RESET " Error receiving " COLOR_BLUE "from" COLOR_RESET " client %s:%d\n", client_ip, client_port);
             }
         }
         // close the client socket
