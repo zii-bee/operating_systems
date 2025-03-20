@@ -4,5 +4,6 @@
 #include "parser.h"
 
 void execute_command(Command *cmd);
+int handle_builtin_command(Command *cmd);
 
 #endif // EXECUTOR_H
