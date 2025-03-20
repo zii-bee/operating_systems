@@ -36,7 +36,7 @@ void execute_command(Command *cmd) {
         if (execvp(cmd->args[0], cmd->args) < 0) {
             // execvp only returns if an error occurs
             if (errno == ENOENT) { // command not found
-                fprintf(stderr, "Command not found: \"" COLOR_GREEN "%s" COLOR_GREEN "\"\n", cmd->args[0]);
+                fprintf(stderr, "Command not found: \"" COLOR_GREEN "%s" "\033[0m" "\"\n", cmd->args[0]);
             } else {
                 perror("execvp");
             }

@@ -87,14 +87,14 @@ void execute_shell_command(int client_socket, const char *input) {
             printf(COLOR_GREY "[ERROR]" COLOR_RESET " %s", buffer);
     
             // remove trailing newline for display purposes
-            // char display_buffer[MAX_INPUT_SIZE];
-            // strcpy(display_buffer, buffer);
-            // size_t len = strlen(display_buffer);
-            // if (len > 0 && display_buffer[len-1] == '\n') {
-            //     display_buffer[len-1] = '\0';
-            // }
+            char display_buffer[MAX_INPUT_SIZE];
+            strcpy(display_buffer, buffer);
+            size_t len = strlen(display_buffer);
+            if (len > 0 && display_buffer[len-1] == '\n') {
+                display_buffer[len-1] = '\0';
+            }
             
-            // printf(COLOR_GREY "[OUTPUT]" COLOR_RESET " Sending error message to client: \"" COLOR_GREEN "%s" COLOR_RESET "\"\n", display_buffer);
+            printf(COLOR_GREY "[OUTPUT]" COLOR_RESET " Sending error message to client: \"" COLOR_GREEN "%s" COLOR_RESET "\"\n", display_buffer);
             send(client_socket, buffer, bytes_read, 0);
         } else if (strcmp(input, "ls") == 0){ // ls output is formatted differently because no newline between items
             char processed_buffer[MAX_INPUT_SIZE];
