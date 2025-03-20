@@ -76,12 +76,14 @@ void execute_shell_command(int client_socket, const char *input) {
         buffer[bytes_read] = '\0';
         int is_error = (strstr(buffer, "Error:") != NULL || 
                         strstr(buffer, "not found") != NULL ||
+                        strstr(buffer, "missing operand") != NULL ||
                         strstr(buffer, "Parsing error") != NULL);
         
         if (is_error) {
             // log error message
             printf("[ERROR] %s", buffer);
             printf("[OUTPUT] Sending error message to client: %s", buffer);
+            send(client_socket, buffer, bytes_read, 0);
         } else if (strcmp(input, "ls") == 0){ // ls output is formatted differently because no newline between items
             char processed_buffer[MAX_INPUT_SIZE];
             int j = 0;
