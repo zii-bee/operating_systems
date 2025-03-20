@@ -21,7 +21,7 @@ void execute_shell_command(int client_socket, const char *input) {
     //     return;
     // }
 
-    printf("[EXECUTING] 2, Executing command: \"%s\"\n", input);
+    printf("[EXECUTING] Executing command: \"%s\"\n", input);
     
     // redirect stdout and stderr to capture the output
     int stdout_backup = dup(STDOUT_FILENO);
