@@ -14,6 +14,7 @@
 #define COLOR_RESET "\033[0m"
 #define COLOR_BLUE "\033[1;34m"
 #define COLOR_GREY "\033[90m"
+#define COLOR_GREEN "\033[1;32m"
 
 // maximum size of input buffer
 #define MAX_INPUT_SIZE 1024
@@ -21,7 +22,7 @@
 
 void execute_shell_command(int client_socket, const char *input) {
 
-    printf(COLOR_GREY "[EXECUTING]" COLOR_RESET " Executing command: \"%s\"\n", input);
+    printf(COLOR_GREY "[EXECUTING]" COLOR_RESET " Executing command: \"" COLOR_GREEN "%s" COLOR_RESET "\"\n", input);
     
     // redirect stdout and stderr to capture the output
     int stdout_backup = dup(STDOUT_FILENO);
@@ -82,9 +83,9 @@ void execute_shell_command(int client_socket, const char *input) {
                         strstr(buffer, "Parsing error") != NULL);
         
         if (is_error) { // if it's an error, send the error message to the client
-            // log error message
+            // log error message with closing quote fixed
             printf(COLOR_GREY "[ERROR]" COLOR_RESET " %s", buffer);
-            printf(COLOR_GREY "[OUTPUT]" COLOR_RESET " Sending error message to client: \"%s\"", buffer);
+            printf(COLOR_GREY "[OUTPUT]" COLOR_RESET " Sending error message to client: \"" COLOR_GREEN "%s" COLOR_RESET "\"\n", buffer);
             send(client_socket, buffer, bytes_read, 0);
         } else if (strcmp(input, "ls") == 0){ // ls output is formatted differently because no newline between items
             char processed_buffer[MAX_INPUT_SIZE];
@@ -190,8 +191,8 @@ void start_server(int port) {
                 break;
             }
             
-            // log the commands and actions on the server side, with "from" in blue
-            printf(COLOR_GREY "[RECEIVED]" COLOR_RESET " Received command: \"%s\" " COLOR_BLUE "from" COLOR_RESET " client %d:%s: \n", input, client_port, client_ip);
+            // log the commands and actions on the server side, with "from" in blue and command in green
+            printf(COLOR_GREY "[RECEIVED]" COLOR_RESET " Received command: \"" COLOR_GREEN "%s" COLOR_RESET "\" " COLOR_BLUE "from" COLOR_RESET " client %d:%s: \n", input, client_port, client_ip);
             
             // execute the command
             execute_shell_command(client_socket, input);
