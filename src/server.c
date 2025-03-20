@@ -79,17 +79,31 @@ void execute_shell_command(int client_socket, const char *input) {
                         strstr(buffer, "Parsing error") != NULL);
         
         if (is_error) {
-            // Log error message
+            // log error message
             printf("[ERROR] %s", buffer);
             printf("[OUTPUT] Sending error message to client: %s", buffer);
-        } else {
-            // Log normal output
-            printf("[OUTPUT] Sending output to client:\n%s", buffer);
+        } else if (strstr(input, "ls") == input && (input[2] == '\0' || isspace(input[2]))){
+            char processed_buffer[MAX_INPUT_SIZE];
+            int j = 0;
+            
+            // replace newlines with spaces because client output on regular ls giving newlines between items
+            for (int i = 0; i < bytes_read; i++) {
+                if (buffer[i] == '\n' && i < bytes_read - 1) {
+                    processed_buffer[j++] = ' ';
+                } else {
+                    processed_buffer[j++] = buffer[i];
+                }
+            }
+            processed_buffer[j] = '\0';
+            
+            // send the processed output
+            send(client_socket, processed_buffer, j, 0);
         }
-        // print the output for server logs
-        printf("[OUTPUT] Sending output to client:\n%s", buffer);
-        // send the output to the client
-        send(client_socket, buffer, bytes_read, 0);
+        else {
+            // log normal output
+            printf("[OUTPUT] Sending output to client:\n%s", buffer);
+            send(client_socket, buffer, bytes_read, 0);
+        }
     } else {
         // send empty as a response when there's no output
         send(client_socket, "", 1, 0);
@@ -169,14 +183,11 @@ void start_server(int port) {
             }
             
             // log the commands and actions on the server side
-            printf("--------------------------------------\n");
             printf("[RECEIVED] Received command: \"%s\" from client %d:%s: \n", input, client_port, client_ip);
             
             // execute the command
             execute_shell_command(client_socket, input);
             
-            printf("Response sent to %s:%d\n", client_ip, client_port);
-            printf("--------------------------------------\n");
         }
         
         if (bytes_received <= 0) {
