@@ -150,7 +150,7 @@ void start_server(int port) {
         
         char client_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, sizeof(client_ip));
-        int client_port = ntohs(client_addr.sin_port);
+        // int client_port = ntohs(client_addr.sin_port);
         
         printf("[INFO] Client connected.\n");
         
