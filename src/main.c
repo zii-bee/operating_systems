@@ -11,6 +11,7 @@
 #define MAX_INPUT_SIZE 1024
 #define DEFAULT_PORT 8080
 
+// print usage information
 void print_usage(const char *program_name) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "  %s             - Run in local shell mode\n", program_name);
@@ -19,7 +20,7 @@ void print_usage(const char *program_name) {
 }
 
 int main(int argc, char *argv[]) {
-    // Parse command line arguments
+    // parse command line arguments
     if (argc > 1) {
         // Server mode
         if (strcmp(argv[1], "-s") == 0) {
@@ -41,19 +42,23 @@ int main(int argc, char *argv[]) {
                 print_usage(argv[0]);
                 return EXIT_FAILURE;
             }
+            // get IP address and port number
             const char *ip = argv[2];
             int port = DEFAULT_PORT;
             if (argc > 3) {
+                // Parse port number
                 port = atoi(argv[3]);
-                if (port <= 0 || port > 65535) {
+                if (port <= 0 || port > 65535) { // check if valid port number
                     fprintf(stderr, "Invalid port number. Using default port %d.\n", DEFAULT_PORT);
                     port = DEFAULT_PORT;
                 }
             }
+            // start client
             start_client(ip, port);
             return 0;
         }
         else {
+            // invalid arguments
             print_usage(argv[0]);
             return EXIT_FAILURE;
         }

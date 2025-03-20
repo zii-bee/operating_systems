@@ -10,16 +10,11 @@
 #include "pipes.h"
 #include "server.h"
 
+// maximum size of input buffer
 #define MAX_INPUT_SIZE 1024
-#define BACKLOG 5
+#define BACKLOG 5 // maximum number of pending connections
 
 void execute_shell_command(int client_socket, const char *input) {
-    // check for empty input or only whitespace
-    // if (!input || strlen(input) == 0 || strspn(input, " \t\n") == strlen(input)) {
-    //     // Send a newline character as a response to empty input
-    //     send(client_socket, "\n", 1, 0);
-    //     return;
-    // }
 
     printf("[EXECUTING] Executing command: \"%s\"\n", input);
     
@@ -72,14 +67,16 @@ void execute_shell_command(int client_socket, const char *input) {
     ssize_t bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1);
     close(pipefd[0]);
     
+    // if there's output, send it to the client
     if (bytes_read > 0) {
-        buffer[bytes_read] = '\0';
+        buffer[bytes_read] = '\0'; // null-terminate the buffer
+        // check if the output contains an error message
         int is_error = (strstr(buffer, "Error:") != NULL || 
                         strstr(buffer, "not found") != NULL ||
                         strstr(buffer, ": missing operand") != NULL ||
                         strstr(buffer, "Parsing error") != NULL);
         
-        if (is_error) {
+        if (is_error) { // if it's an error, send the error message to the client
             // log error message
             printf("[ERROR] %s", buffer);
             printf("[OUTPUT] Sending error message to client: \"%s\"", buffer);
@@ -93,10 +90,10 @@ void execute_shell_command(int client_socket, const char *input) {
                 if (buffer[i] == '\n' && i < bytes_read - 1) {
                     processed_buffer[j++] = ' ';
                 } else {
-                    processed_buffer[j++] = buffer[i];
+                    processed_buffer[j++] = buffer[i]; // copy the character as is
                 }
             }
-            processed_buffer[j] = '\0';
+            processed_buffer[j] = '\0'; // null-terminate the processed buffer
             
             // send the processed output
             printf("[OUTPUT] Sending output to client:\n%s", processed_buffer);
@@ -107,20 +104,22 @@ void execute_shell_command(int client_socket, const char *input) {
             printf("[OUTPUT] Sending output to client:\n%s", buffer);
             send(client_socket, buffer, bytes_read, 0);
         }
+    // if there's no output, send an empty response
     } else {
-        // send empty as a response when there's no output
         printf("[OUTPUT] Sending empty response (command had no output)\n");
-        send(client_socket, "", 1, 0);
+        send(client_socket, "", 1, 0); // send an empty response
     }
 }
 
 void start_server(int port) {
+    // create socket variables
     int server_socket, client_socket;
     struct sockaddr_in server_addr, client_addr;
     socklen_t client_len = sizeof(client_addr);
     
     // create socket
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    // check if socket creation was successful
     if (server_socket < 0) {
         perror("socket");
         exit(EXIT_FAILURE);
@@ -130,15 +129,15 @@ void start_server(int port) {
     int opt = 1;
     if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
         perror("setsockopt");
-        close(server_socket);
+        close(server_socket); // close the socket before exiting
         exit(EXIT_FAILURE);
     }
     
     // configure server address
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = INADDR_ANY; // accept connections from any address
+    server_addr.sin_port = htons(port); // set the port number
     
     // bind socket to address
     if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
@@ -153,7 +152,7 @@ void start_server(int port) {
         close(server_socket);
         exit(EXIT_FAILURE);
     }
-    
+    // print server info
     printf("[INFO] Server started, waiting for client connections...\n");
     
     while (1) {
@@ -163,7 +162,7 @@ void start_server(int port) {
             perror("accept");
             continue;
         }
-        
+        // get client IP and port
         char client_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, sizeof(client_ip));
         int client_port = ntohs(client_addr.sin_port);
@@ -173,7 +172,8 @@ void start_server(int port) {
         // handle client communication
         char input[MAX_INPUT_SIZE];
         ssize_t bytes_received;
-        
+
+        // receive data from client
         while ((bytes_received = recv(client_socket, input, sizeof(input) - 1, 0)) > 0) {
             input[bytes_received] = '\0';
             
@@ -192,7 +192,7 @@ void start_server(int port) {
             execute_shell_command(client_socket, input);
             
         }
-        
+        // check if there was an error receiving data
         if (bytes_received <= 0) {
             if (bytes_received == 0) {
                 printf("[INFO] Client disconnected: %s:%d\n", client_ip, client_port);
@@ -200,11 +200,10 @@ void start_server(int port) {
                 perror("recv");
                 printf("[ERROR] Error receiving from client %s:%d\n", client_ip, client_port);
             }
-            printf("======================================\n");
         }
-        
+        // close the client socket
         close(client_socket);
     }
-    
+    // close the server socket
     close(server_socket);
 }

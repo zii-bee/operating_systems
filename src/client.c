@@ -7,10 +7,12 @@
 #include <arpa/inet.h>
 #include "client.h"
 
+// maximum size of input buffer
 #define MAX_INPUT_SIZE 1024
-#define MAX_OUTPUT_SIZE 4096
+#define MAX_OUTPUT_SIZE 4096 // maximum size of output buffer
 
 void start_client(const char *ip, int port) {
+    // create socket variables
     int client_socket;
     struct sockaddr_in server_addr;
     
@@ -42,6 +44,7 @@ void start_client(const char *ip, int port) {
     
     printf("Connected to server at %s:%d\n", ip, port);
     
+    // main client loop
     char input[MAX_INPUT_SIZE];
     char output[MAX_OUTPUT_SIZE];
     
@@ -60,13 +63,13 @@ void start_client(const char *ip, int port) {
             // send exit command to server before closing
             send(client_socket, input, strlen(input), 0);
             
-            // wait for server's goodbye message
+            // receive any remaining output from server
             ssize_t bytes_received = recv(client_socket, output, sizeof(output) - 1, 0);
             if (bytes_received > 0) {
                 output[bytes_received] = '\0';
                 printf("%s", output);
             }
-            
+            // close the socket and exit the loop
             break;
         }
 
@@ -87,7 +90,8 @@ void start_client(const char *ip, int port) {
             perror("recv");
             break;
         }
-        
+
+        // check if server closed the connection
         if (bytes_received == 0) {
             printf("Server closed connection\n");
             break;
@@ -97,6 +101,6 @@ void start_client(const char *ip, int port) {
         output[bytes_received] = '\0';
         printf("%s", output);
     }
-    
+    // close the client socket
     close(client_socket);
 }

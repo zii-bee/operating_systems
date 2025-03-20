@@ -7,6 +7,7 @@
 #include "redirection.h"
 
 void execute_command(Command *cmd) {
+    // check if the command is a built-in command
     if (handle_builtin_command(cmd)) {
         return;
     }
@@ -21,16 +22,17 @@ void execute_command(Command *cmd) {
             if (redirect_input(cmd->input_file) != 0)
                 exit(EXIT_FAILURE);
         }
-        if (cmd->output_file) {
+        if (cmd->output_file) { // redirect output to a file
             if (redirect_output(cmd->output_file) != 0)
                 exit(EXIT_FAILURE);
         }
-        if (cmd->error_file) {
+        if (cmd->error_file) { // redirect error output to a file
             if (redirect_error(cmd->error_file) != 0)
                 exit(EXIT_FAILURE);
         }
         if (execvp(cmd->args[0], cmd->args) < 0) {
-            if (errno == ENOENT) {
+            // execvp only returns if an error occurs
+            if (errno == ENOENT) { // command not found
                 fprintf(stderr, "Command not found: %s\n", cmd->args[0]);
             } else {
                 perror("execvp");
@@ -45,6 +47,7 @@ void execute_command(Command *cmd) {
     }
 }
 
+// handle built-in commands
 int handle_builtin_command(Command *cmd) {
     if (strcmp(cmd->args[0], "cd") == 0) {
         // Change directory
