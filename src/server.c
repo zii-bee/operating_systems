@@ -76,7 +76,7 @@ void execute_shell_command(int client_socket, const char *input) {
         buffer[bytes_read] = '\0';
         int is_error = (strstr(buffer, "Error:") != NULL || 
                         strstr(buffer, "not found") != NULL ||
-                        strstr(buffer, "missing operand") != NULL ||
+                        strstr(buffer, ":missing operand") != NULL ||
                         strstr(buffer, "Parsing error") != NULL);
         
         if (is_error) {
