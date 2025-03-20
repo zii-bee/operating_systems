@@ -82,7 +82,7 @@ void execute_shell_command(int client_socket, const char *input) {
             // log error message
             printf("[ERROR] %s", buffer);
             printf("[OUTPUT] Sending error message to client: %s", buffer);
-        } else if (strstr(input, "ls") == input && (input[2] == '\0' || isspace(input[2]))){
+        } else if (strcmp(input, "ls") == 0){ // ls output is formatted differently because no newline between items
             char processed_buffer[MAX_INPUT_SIZE];
             int j = 0;
             
@@ -97,6 +97,7 @@ void execute_shell_command(int client_socket, const char *input) {
             processed_buffer[j] = '\0';
             
             // send the processed output
+            printf("[OUTPUT] Sending output to client:\n%s", processed_buffer);
             send(client_socket, processed_buffer, j, 0);
         }
         else {
@@ -106,8 +107,8 @@ void execute_shell_command(int client_socket, const char *input) {
         }
     } else {
         // send empty as a response when there's no output
+        printf("[OUTPUT] Sending empty response (command had no output)\n");
         send(client_socket, "", 1, 0);
-        printf("[OUTPUT] Sent empty response (command had no output)\n");
     }
 }
 
