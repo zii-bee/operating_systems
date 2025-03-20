@@ -7,6 +7,8 @@
 #include "executor.h"
 #include "redirection.h"
 
+#define COLOR_GREEN "\033[1;32m"
+
 void execute_command(Command *cmd) {
     // check if the command is a built-in command
     if (handle_builtin_command(cmd)) {
@@ -34,7 +36,7 @@ void execute_command(Command *cmd) {
         if (execvp(cmd->args[0], cmd->args) < 0) {
             // execvp only returns if an error occurs
             if (errno == ENOENT) { // command not found
-                fprintf(stderr, "Command not found: %s\n", cmd->args[0]);
+                fprintf(stderr, "Command not found: \"" COLOR_GREEN "%s" COLOR_GREEN "\"\n", cmd->args[0]);
             } else {
                 perror("execvp");
             }
