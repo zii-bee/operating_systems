@@ -21,7 +21,8 @@ void execute_shell_command(int client_socket, const char *input) {
     //     return;
     // }
 
-    printf("Executing command: \"%s\"\n", input);
+    printf("[RECEIVED] Received command: \"%s\" from client.\n", input);
+    printf("[EXECUTING] Executing command: \"%s\"\n", input);
     
     // redirect stdout and stderr to capture the output
     int stdout_backup = dup(STDOUT_FILENO);
@@ -40,9 +41,12 @@ void execute_shell_command(int client_socket, const char *input) {
     close(pipefd[1]);
     
     // execute the command using existing shell implementation
+    int command_success = 1; // Flag to track if command executed successfully
+    
     if (strchr(input, '|')) {
         if (strstr(input, "||") != NULL) {
             fprintf(stderr, "Error: Empty command between pipes.\n");
+            command_success = 0;
         } else {
             execute_pipeline(input);
         }
@@ -54,6 +58,7 @@ void execute_shell_command(int client_socket, const char *input) {
             free_command(cmd);
         } else {
             fprintf(stderr, "Parsing error.\n");
+            command_success = 0;
         }
     }
     
@@ -74,15 +79,22 @@ void execute_shell_command(int client_socket, const char *input) {
     
     if (bytes_read > 0) {
         buffer[bytes_read] = '\0';
-        // print the output for server logs
-        printf("Command output:\n%s", buffer);
+        
+        // Check if the output contains an error message
+        if (!command_success || strstr(buffer, "not found") || strstr(buffer, "Error") || strstr(buffer, "error")) {
+            printf("[ERROR] Command not found: \"%s\"\n", input);
+            printf("[OUTPUT] Sending error message to client: \"Command not found: %s\"\n", input);
+        } else {
+            // Print the output for server logs
+            printf("[OUTPUT] Sending output to client:\n%s", buffer);
+        }
+        
         // send the output to the client
         send(client_socket, buffer, bytes_read, 0);
-        printf("Sent %zd bytes of response\n", bytes_read);
     } else {
         // send empty as a response when there's no output
         send(client_socket, "", 1, 0);
-        printf("Sent newline response (command had no output)\n");
+        printf("[OUTPUT] No output to send to client\n");
     }
 }
 
@@ -126,7 +138,7 @@ void start_server(int port) {
         exit(EXIT_FAILURE);
     }
     
-    printf("Server started. Listening on port %d...\n", port);
+    printf("[INFO] Server started, waiting for client connections...\n");
     
     while (1) {
         // accept connection
@@ -140,9 +152,7 @@ void start_server(int port) {
         inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, sizeof(client_ip));
         int client_port = ntohs(client_addr.sin_port);
         
-        printf("======================================\n");
-        printf("New client connected: %s:%d\n", client_ip, client_port);
-        printf("======================================\n");
+        printf("[INFO] Client connected.\n");
         
         // handle client communication
         char input[MAX_INPUT_SIZE];
@@ -153,33 +163,23 @@ void start_server(int port) {
             
             // check if client wants to exit
             if (strcmp(input, "exit") == 0) {
-                printf("Client %s:%d requested to exit\n", client_ip, client_port);
+                printf("[INFO] Client requested to exit\n");
                 send(client_socket, "Goodbye!\n", 9, 0);
-                printf("Client disconnected: %s:%d\n", client_ip, client_port);
-                printf("======================================\n");
+                printf("[INFO] Client disconnected\n");
                 break;
             }
             
-            // log the command regardless of whether it's empty or not
-            printf("--------------------------------------\n");
-            printf("Command received from %s:%d: \"%s\"\n", client_ip, client_port, input);
-            printf("Processing command...\n");
-            
             // execute the command
             execute_shell_command(client_socket, input);
-            
-            printf("Response sent to %s:%d\n", client_ip, client_port);
-            printf("--------------------------------------\n");
         }
         
         if (bytes_received <= 0) {
             if (bytes_received == 0) {
-                printf("Client disconnected: %s:%d\n", client_ip, client_port);
+                printf("[INFO] Client disconnected\n");
             } else {
                 perror("recv");
-                printf("Error receiving from client %s:%d\n", client_ip, client_port);
+                printf("[ERROR] Error receiving from client\n");
             }
-            printf("======================================\n");
         }
         
         close(client_socket);
