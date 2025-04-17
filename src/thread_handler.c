@@ -14,6 +14,7 @@
 #define MAX_INPUT_SIZE 1024
 
 // Execute commands sent by clients (copied from server.c and modified)
+// Execute commands sent by clients
 void execute_shell_command(int client_socket, const char *input, char *client_ip, int client_port) {
     // Print incoming command message
     printf("Incoming message from %s:%d: \"%s\"\n", client_ip, client_port, input);
@@ -71,11 +72,41 @@ void execute_shell_command(int client_socket, const char *input, char *client_ip
     if (bytes_read > 0) {
         buffer[bytes_read] = '\0'; // Null-terminate the buffer
         
-        // Print outgoing message
-        printf("Outgoing message to %s:%d: \"%s\"\n", client_ip, client_port, 
-               buffer[bytes_read-1] == '\n' ? buffer : strcat(buffer, "\n"));
-        
-        send(client_socket, buffer, bytes_read, 0);
+        // Special handling for 'ls' command
+        if (strcmp(input, "ls") == 0) {
+            char processed_buffer[MAX_INPUT_SIZE];
+            int j = 0;
+            
+            // Replace newlines with spaces for 'ls' output
+            for (int i = 0; i < bytes_read; i++) {
+                if (buffer[i] == '\n' && i < bytes_read - 1) {
+                    processed_buffer[j++] = ' ';
+                } else {
+                    processed_buffer[j++] = buffer[i]; // Copy the character as is
+                }
+            }
+            processed_buffer[j] = '\0'; // Null-terminate the processed buffer
+            
+            // Print outgoing message
+            printf("Outgoing message to %s:%d: \"%s\"\n", client_ip, client_port, processed_buffer);
+            
+            // Send the processed output
+            send(client_socket, processed_buffer, j, 0);
+        } else {
+            // Check if the output ends with a newline, add one if it doesn't
+            int needs_newline = (buffer[bytes_read-1] != '\n');
+            
+            // Print outgoing message
+            printf("Outgoing message to %s:%d: \"%s\"\n", client_ip, client_port, buffer);
+            
+            // Send the original output
+            send(client_socket, buffer, bytes_read, 0);
+            
+            // Add a newline if needed
+            if (needs_newline) {
+                send(client_socket, "\n", 1, 0);
+            }
+        }
     } else {
         // If there's no output, send an empty response
         printf("Outgoing message to %s:%d: \"\"\n", client_ip, client_port);
