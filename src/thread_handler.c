@@ -220,8 +220,8 @@ void *handle_client(void *arg) {
             printf("[RECEIVED] [Client #%d - %s:%d] Received command: \"exit\"\n", 
                    client_id, client_ip, client_port);
             // prepare a goodbye message
-            char goodbye[] = "Goodbye!\n";
-            printf("[OUTPUT] [Client #%d - %s:%d] Sending response: \"Goodbye!\"\n\n", 
+            char goodbye[] = "Disconnected from server.!\n";
+            printf("[OUTPUT] [Client #%d - %s:%d] Sending response: \"Disconnected from server.!\"\n\n", 
                    client_id, client_ip, client_port);
             // send the goodbye message and break the loop to disconnect
             send(client_socket, goodbye, strlen(goodbye), 0);
