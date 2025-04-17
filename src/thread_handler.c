@@ -24,6 +24,25 @@ void execute_shell_command(int client_socket, const char *input, char *client_ip
     printf("[EXECUTING] [Client #%d - %s:%d] Executing command: \"%s\"\n", 
            client_id, client_ip, client_port, input);
     
+    // Special case for cd command to avoid extra newline
+    if (strncmp(input, "cd", 2) == 0 && (input[2] == ' ' || input[2] == '\0')) {
+        // Parse and execute the cd command
+        Command *cmd = parse_command(input);
+        if (cmd) {
+            execute_command(cmd);
+            free_command(cmd);
+            
+            // Print output message with newline after
+            printf("[OUTPUT] [Client #%d - %s:%d] Sending empty response (cd command)\n\n",
+                  client_id, client_ip, client_port);
+            
+            // For cd command, send an empty string (no newline)
+            send(client_socket, "", 0, 0);
+            return;
+        }
+    }
+    
+    // For all other commands, proceed as before
     // Redirect stdout and stderr to capture the output
     int stdout_backup = dup(STDOUT_FILENO);
     int stderr_backup = dup(STDERR_FILENO);
@@ -88,8 +107,8 @@ void execute_shell_command(int client_socket, const char *input, char *client_ip
             printf("[ERROR] [Client #%d - %s:%d] %s", 
                   client_id, client_ip, client_port, buffer);
                   
-            // Print output message
-            printf("[OUTPUT] [Client #%d - %s:%d] Sending error message to client:\n\"%s\"\n", 
+            // Print output message with extra newline after
+            printf("[OUTPUT] [Client #%d - %s:%d] Sending error message to client:\n\"%s\"\n\n", 
                   client_id, client_ip, client_port, buffer);
                   
             send(client_socket, buffer, bytes_read, 0);
@@ -115,8 +134,8 @@ void execute_shell_command(int client_socket, const char *input, char *client_ip
             
             processed_buffer[j] = '\0';
             
-            // Print output message
-            printf("[OUTPUT] [Client #%d - %s:%d] Sending output to client:\n%s", 
+            // Print output message with extra newline after
+            printf("[OUTPUT] [Client #%d - %s:%d] Sending output to client:\n%s\n", 
                   client_id, client_ip, client_port, processed_buffer);
                   
             // Send the processed output to client
@@ -124,10 +143,18 @@ void execute_shell_command(int client_socket, const char *input, char *client_ip
         } 
         else {
             // Normal output
-            // Print output message
-            printf("[OUTPUT] [Client #%d - %s:%d] Sending output to client:\n%s", 
-                  client_id, client_ip, client_port, 
-                  buffer[bytes_read-1] == '\n' ? buffer : strcat(buffer, "\n"));
+            // Add newline at the end if needed for display
+            char display_buffer[MAX_OUTPUT_SIZE];
+            strncpy(display_buffer, buffer, bytes_read);
+            display_buffer[bytes_read] = '\0';
+            
+            if (bytes_read > 0 && display_buffer[bytes_read-1] != '\n') {
+                strcat(display_buffer, "\n");
+            }
+            
+            // Print output message with extra newline after
+            printf("[OUTPUT] [Client #%d - %s:%d] Sending output to client:\n%s\n", 
+                  client_id, client_ip, client_port, display_buffer);
                   
             // Ensure output ends with a newline for consistency
             int needs_newline = (bytes_read > 0 && buffer[bytes_read-1] != '\n');
@@ -141,10 +168,10 @@ void execute_shell_command(int client_socket, const char *input, char *client_ip
             }
         }
     } else {
-        // If there's no output, send an empty response with just a newline
-        printf("[OUTPUT] [Client #%d - %s:%d] Sending empty response (command had no output)\n", 
+        // If there's no output, send an empty response (no newline)
+        printf("[OUTPUT] [Client #%d - %s:%d] Sending empty response (command had no output)\n\n", 
               client_id, client_ip, client_port);
-        send(client_socket, "\n", 1, 0);
+        send(client_socket, "", 0, 0);  // Send empty string instead of newline
     }
 }
 
@@ -172,8 +199,8 @@ void *handle_client(void *arg) {
         if (strcmp(input, "exit") == 0) {
             printf("[RECEIVED] [Client #%d - %s:%d] Received command: \"exit\"\n", 
                    client_id, client_ip, client_port);
-            char goodbye[] = "Disconnected from Server.\n";
-            printf("[OUTPUT] [Client #%d - %s:%d] Sending response: \"Disconnected from Server.\"\n", 
+            char goodbye[] = "Goodbye!\n";
+            printf("[OUTPUT] [Client #%d - %s:%d] Sending response: \"Goodbye!\"\n\n", 
                    client_id, client_ip, client_port);
             send(client_socket, goodbye, strlen(goodbye), 0);
             break;
