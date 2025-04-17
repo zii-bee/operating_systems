@@ -42,7 +42,7 @@ void execute_shell_command(int client_socket, const char *input, char *client_ip
             
             // for cd, we send an empty string - not even a newline
             // this prevents extra line breaks in the client terminal
-            send(client_socket, "", 0, 0);
+            send(client_socket, "", 1, 0);
             return;
         }
     }
@@ -187,7 +187,7 @@ void execute_shell_command(int client_socket, const char *input, char *client_ip
         printf("[OUTPUT] [Client #%d - %s:%d] Sending empty response (command had no output)\n\n", 
               client_id, client_ip, client_port);
         // send an empty string - no newline - to avoid extra blank lines in the client
-        send(client_socket, "", 0, 0);
+        send(client_socket, "", 1, 0);
     }
 }
 
