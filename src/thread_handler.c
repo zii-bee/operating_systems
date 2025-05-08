@@ -6,24 +6,20 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-#include "parser.h"
-#include "executor.h"
-#include "pipes.h"
 #include "thread_handler.h"
 #include "scheduler.h"
 
 #define MAX_INPUT_SIZE 1024
 #define MAX_OUTPUT_SIZE 4096
 
-// color codes for output
-#define COLOR_RED     "\033[1;31m"
-#define COLOR_GREEN   "\033[1;32m"
-#define COLOR_YELLOW  "\033[1;33m"
-#define COLOR_BLUE    "\033[1;34m"
-#define COLOR_RESET   "\033[0m"
-
-// Update handle_command function in src/thread_handler.c
 void handle_command(int client_socket, const char *command, int client_id, char *client_ip, int client_port) {
+    // Skip empty commands
+    if (!command || strlen(command) == 0) {
+        const char *prompt = "$ ";
+        send(client_socket, prompt, strlen(prompt), 0);
+        return;
+    }
+
     int is_program = 0;
     int execution_time = -1;
     
@@ -36,7 +32,7 @@ void handle_command(int client_socket, const char *command, int client_id, char 
         }
     }
     
-    // Add task to scheduler - it will handle the output and prompts
+    // Add task to scheduler
     scheduler_add_task(client_id, client_socket, command, 
                       is_program ? TASK_PROGRAM : TASK_SHELL_COMMAND, 
                       execution_time);
@@ -45,12 +41,7 @@ void handle_command(int client_socket, const char *command, int client_id, char 
 void *handle_client(void *arg) {
     client_info *info = (client_info *)arg;
     int client_socket = info->client_socket;
-    struct sockaddr_in client_addr = info->client_addr;
     int client_id = info->client_id;
-    
-    char client_ip[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, sizeof(client_ip));
-    int client_port = ntohs(client_addr.sin_port);
     
     char input[MAX_INPUT_SIZE];
     ssize_t bytes_received;
@@ -69,11 +60,9 @@ void *handle_client(void *arg) {
             break;
         }
         
-        handle_command(client_socket, input, client_id, client_ip, client_port);
-    }
-    
-    if (bytes_received < 0) {
-        perror("recv");
+        handle_command(client_socket, input, client_id, 
+                      inet_ntoa(info->client_addr.sin_addr),
+                      ntohs(info->client_addr.sin_port));
     }
     
     printf("[%d]>>> disconnected\n", client_id);
