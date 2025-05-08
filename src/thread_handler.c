@@ -13,7 +13,7 @@
 #define MAX_OUTPUT_SIZE 4096
 
 // handles commands received from clients
-void handle_command(int client_socket, const char *command, int client_id, char *client_ip, int client_port) {
+void handle_command(int client_socket, const char *command, int client_id) {
     // handle empty commands by just sending prompt back
     if (!command || strlen(command) == 0) {
         const char *prompt = "$ ";

@@ -11,6 +11,7 @@
 #include "pipes.h"
 #include <sys/socket.h>
 
+#define VOID_UNUSED(x) ((void)(x))
 // quantum timing for round robin scheduling
 #define FIRST_ROUND_QUANTUM 3   // first round gets 3 seconds
 #define OTHER_ROUNDS_QUANTUM 7  // subsequent rounds get 7 seconds
@@ -135,6 +136,7 @@ void scheduler_update_task(task_t *task, int time_executed) {
 
 // main scheduler thread implementation
 void *scheduler_thread_func(void *arg) {
+    VOID_UNUSED(arg);
     while (scheduler_running) {
         task_t *task = scheduler_get_next_task();
         if (!task) continue;
@@ -217,8 +219,111 @@ void *scheduler_thread_func(void *arg) {
     }
     return NULL;
 }
+void scheduler_cleanup(void) {
+    if (task_queue) {
+        for (int i = 0; i < task_queue->size; i++) {
+            if (task_queue->tasks[i]) {
+                free(task_queue->tasks[i]->command);
+                free(task_queue->tasks[i]);
+            }
+        }
+        pthread_mutex_destroy(&task_queue->lock);
+        pthread_cond_destroy(&task_queue->not_empty);
+        free(task_queue->tasks);
+        free(task_queue);
+        task_queue = NULL;
+    }
+}
 
-// start the scheduler thread
+void scheduler_add_task(int client_id, int client_socket, const char *command, int type, int exec_time) {
+    pthread_mutex_lock(&task_queue->lock);
+    
+    if (task_queue->size >= task_queue->capacity) {
+        printf("task queue is full\n");
+        pthread_mutex_unlock(&task_queue->lock);
+        return;
+    }
+    
+    task_t *task = malloc(sizeof(task_t));
+    if (!task) {
+        perror("malloc failed");
+        pthread_mutex_unlock(&task_queue->lock);
+        return;
+    }
+    
+    task->id = next_task_id++;
+    task->client_id = client_id;
+    task->client_socket = client_socket;
+    task->type = type;
+    task->command = strdup(command);
+    task->total_time = exec_time;
+    task->remaining_time = exec_time;
+    task->state = TASK_STATE_WAITING;
+    task->round = 1;
+    task->last_executed = 0;
+    task->arrival_time = time(NULL);
+    task->preempted = 0;
+    task->bytes_sent = 0;
+    
+    task_queue->tasks[task_queue->size++] = task;
+    
+    printf("[%d]>>> %s\n", client_id, command);
+    printf("[%d]--- " COLOR_GREEN "created" COLOR_RESET " (%d)\n", 
+           client_id, type == TASK_SHELL_COMMAND ? -1 : exec_time);
+    
+    pthread_cond_signal(&task_queue->not_empty);
+    pthread_mutex_unlock(&task_queue->lock);
+}
+
+void scheduler_complete_task(task_t *task) {
+    pthread_mutex_lock(&task_queue->lock);
+    
+    int task_index = -1;
+    for (int i = 0; i < task_queue->size; i++) {
+        if (task_queue->tasks[i] == task) {
+            task_index = i;
+            break;
+        }
+    }
+    
+    if (task_index != -1) {
+        task->state = TASK_STATE_COMPLETED;
+        printf("[%d]--- " COLOR_RED "ended" COLOR_RESET " (%d)\n", 
+               task->client_id, task->type == TASK_SHELL_COMMAND ? -1 : task->remaining_time);
+        
+        free(task->command);
+        free(task);
+        
+        for (int i = task_index; i < task_queue->size - 1; i++) {
+            task_queue->tasks[i] = task_queue->tasks[i + 1];
+        }
+        task_queue->size--;
+    }
+    
+    pthread_mutex_unlock(&task_queue->lock);
+}
+
+void scheduler_remove_client_tasks(int client_id) {
+    pthread_mutex_lock(&task_queue->lock);
+    
+    int i = 0;
+    while (i < task_queue->size) {
+        if (task_queue->tasks[i]->client_id == client_id) {
+            free(task_queue->tasks[i]->command);
+            free(task_queue->tasks[i]);
+            
+            for (int j = i; j < task_queue->size - 1; j++) {
+                task_queue->tasks[j] = task_queue->tasks[j + 1];
+            }
+            task_queue->size--;
+        } else {
+            i++;
+        }
+    }
+    
+    pthread_mutex_unlock(&task_queue->lock);
+}
+
 void scheduler_start(void) {
     scheduler_running = 1;
     if (pthread_create(&scheduler_thread, NULL, scheduler_thread_func, NULL) != 0) {
@@ -227,114 +332,8 @@ void scheduler_start(void) {
     }
 }
 
-// stop the scheduler thread
 void scheduler_stop(void) {
     scheduler_running = 0;
-    pthread_cond_signal(&task_queue->not_empty); // wake up the thread if it's waiting
+    pthread_cond_signal(&task_queue->not_empty);
     pthread_join(scheduler_thread, NULL);
-}
-
-// estimate execution time for a command
-int estimate_execution_time(const char *command) {
-    // check if this is a ./demo command with a specific time
-    char cmd_copy[256];
-    strncpy(cmd_copy, command, sizeof(cmd_copy) - 1);
-    cmd_copy[sizeof(cmd_copy) - 1] = '\0';
-    
-    char *token = strtok(cmd_copy, " ");
-    if (token && (strcmp(token, "./demo") == 0 || strcmp(token, "demo") == 0)) {
-        token = strtok(NULL, " ");
-        if (token) {
-            return atoi(token);
-        }
-    }
-    
-    // default value for unknown commands
-    return 5;
-}
-
-// print the queue status summary (blue highlighted line)
-void print_queue_summary(void) {
-    pthread_mutex_lock(&task_queue->lock);
-    
-    printf(COLOR_BLUE);
-    printf("[");
-    
-    // print each task's client ID and remaining time
-    for (int i = 0; i < task_queue->size; i++) {
-        task_t *task = task_queue->tasks[i];
-        printf("[%d]-[%d]", task->client_id, task->remaining_time);
-        if (i < task_queue->size - 1) {
-            printf("-");
-        }
-    }
-    
-    printf("]\n");
-    printf(COLOR_RESET);
-    
-    pthread_mutex_unlock(&task_queue->lock);
-}
-
-// execute demo program which simulates work
-void execute_demo_program(const char *command, int client_socket, int n, int client_id) {
-    // extract the value of n from the command if not provided
-    int iterations = n;
-    if (iterations <= 0) {
-        char cmd_copy[256];
-        strncpy(cmd_copy, command, sizeof(cmd_copy) - 1);
-        cmd_copy[sizeof(cmd_copy) - 1] = '\0';
-        
-        char *token = strtok(cmd_copy, " ");
-        token = strtok(NULL, " "); // get the second part which should be n
-        if (token) {
-            iterations = atoi(token);
-        } else {
-            iterations = 5; // default value
-        }
-    }
-    
-    // add the task to the scheduler
-    scheduler_add_task(client_id, client_socket, command, TASK_PROGRAM, iterations);
-    
-    // prepare response for client
-    char response[4096] = {0};
-    for (int i = 1; i <= iterations; i++) {
-        char line[64];
-        snprintf(line, sizeof(line), "Demo %d/%d\n", i, iterations);
-        strcat(response, line);
-    }
-    
-    // calculate bytes to send
-    size_t bytes_to_send = strlen(response);
-    
-    // send the response to the client
-    ssize_t sent_bytes = send(client_socket, response, bytes_to_send, 0);
-    if (sent_bytes < 0) {
-        perror("send");
-    } else {
-        // Update the task's bytes_sent value
-        pthread_mutex_lock(&task_queue->lock);
-        for (int i = 0; i < task_queue->size; i++) {
-            if (task_queue->tasks[i]->client_id == client_id && 
-                strcmp(task_queue->tasks[i]->command, command) == 0) {
-                task_queue->tasks[i]->bytes_sent = sent_bytes; // Just set it directly
-                
-                // Print the bytes sent here immediately
-                printf("[%d]<<< %zu bytes sent\n", client_id, sent_bytes);
-                break;
-            }
-        }
-        pthread_mutex_unlock(&task_queue->lock);
-    }
-    
-    // Add a prompt
-    const char *prompt = "$ ";
-    sent_bytes = send(client_socket, prompt, strlen(prompt), 0);
-    if (sent_bytes > 0) {
-        // We don't need to track these bytes for the display
-        // as they are just the prompt, not the actual content
-    }
-    
-    // after all iterations complete, print the summary
-    print_queue_summary();
 }
