@@ -304,7 +304,7 @@ void scheduler_remove_client_tasks(int client_id) {
     pthread_mutex_unlock(&task_queue->lock);
 }
 
-// main scheduler thread function
+// Updated scheduler_thread_func function in src/scheduler.c
 void *scheduler_thread_func(void *arg) {
     (void)arg; // unused parameter
     
@@ -318,11 +318,62 @@ void *scheduler_thread_func(void *arg) {
             
             // execute the task based on its type
             if (task->type == TASK_SHELL_COMMAND) {
-                // for shell commands, just execute them fully
+                // for shell commands, we need to capture output to send back to client
+                
+                // save the current stdout and stderr
+                int stdout_backup = dup(STDOUT_FILENO);
+                int stderr_backup = dup(STDERR_FILENO);
+                
+                // create a pipe for capturing command output
+                int pipefd[2];
+                if (pipe(pipefd) == -1) {
+                    perror("pipe");
+                    scheduler_complete_task(task);
+                    continue;
+                }
+                
+                // redirect stdout and stderr to the pipe
+                dup2(pipefd[1], STDOUT_FILENO);
+                dup2(pipefd[1], STDERR_FILENO);
+                close(pipefd[1]); // close the write end in this process
+                
+                // parse and execute the command
                 Command *cmd = parse_command(task->command);
                 if (cmd) {
                     execute_command(cmd);
                     free_command(cmd);
+                }
+                
+                // flush to ensure all output goes to the pipe
+                fflush(stdout);
+                fflush(stderr);
+                
+                // restore the original stdout and stderr
+                dup2(stdout_backup, STDOUT_FILENO);
+                dup2(stderr_backup, STDERR_FILENO);
+                close(stdout_backup);
+                close(stderr_backup);
+                
+                // read the captured output
+                char buffer[4096] = {0};
+                ssize_t bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1);
+                close(pipefd[0]);
+                
+                if (bytes_read > 0) {
+                    buffer[bytes_read] = '\0';
+                    
+                    // send output back to the client
+                    if (send(task->client_socket, buffer, bytes_read, 0) < 0) {
+                        perror("send");
+                    }
+                    
+                    // Send an additional newline and prompt
+                    const char *prompt = "\n$ ";
+                    send(task->client_socket, prompt, strlen(prompt), 0);
+                } else {
+                    // If no output, at least send a prompt back to client
+                    const char *prompt = "$ ";
+                    send(task->client_socket, prompt, strlen(prompt), 0);
                 }
                 
                 // mark the task as completed
@@ -347,6 +398,11 @@ void *scheduler_thread_func(void *arg) {
                 
                 // if the task is completed
                 if (task->remaining_time <= 0) {
+                    // Send prompt back to the client
+                    const char *prompt = "$ ";
+                    send(task->client_socket, prompt, strlen(prompt), 0);
+                    
+                    // Mark the task as complete
                     scheduler_complete_task(task);
                 }
             }

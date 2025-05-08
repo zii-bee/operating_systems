@@ -22,7 +22,7 @@
 #define COLOR_BLUE    "\033[1;34m"
 #define COLOR_RESET   "\033[0m"
 
-// handle a command from a client
+// Update handle_command function in src/thread_handler.c
 void handle_command(int client_socket, const char *command, int client_id, char *client_ip, int client_port) {
     // check if this is a program command or shell command
     int is_program = 0;
@@ -55,13 +55,18 @@ void handle_command(int client_socket, const char *command, int client_id, char 
         if (send(client_socket, response, strlen(response), 0) < 0) {
             perror("send");
         }
+        
+        // Add a prompt after sending the output
+        const char *prompt = "$ ";
+        send(client_socket, prompt, strlen(prompt), 0);
     } else {
         // this is a shell command, add it to the scheduler
         scheduler_add_task(client_id, client_socket, command, TASK_SHELL_COMMAND, -1);
+        
     }
 }
 
-// thread function to handle a client connection
+// Update handle_client function in src/thread_handler.c
 void *handle_client(void *arg) {
     // extract client information
     client_info *info = (client_info *)arg;
@@ -77,6 +82,10 @@ void *handle_client(void *arg) {
     // buffer for incoming commands
     char input[MAX_INPUT_SIZE];
     ssize_t bytes_received;
+    
+    // Send initial prompt to client
+    const char *prompt = "$ ";
+    send(client_socket, prompt, strlen(prompt), 0);
     
     // main client loop
     while ((bytes_received = recv(client_socket, input, sizeof(input) - 1, 0)) > 0) {
