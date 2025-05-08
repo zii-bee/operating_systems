@@ -11,5 +11,6 @@ typedef struct {
 } client_info;
 
 void *handle_client(void *arg);
+void handle_command(int client_socket, const char *command, int client_id, char *client_ip, int client_port);
 
 #endif // THREAD_HANDLER_H
