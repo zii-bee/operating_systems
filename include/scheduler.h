@@ -13,9 +13,9 @@
 #define TASK_STATE_RUNNING 1
 #define TASK_STATE_COMPLETED 2
 
-// scheduler algorithm selection
-#define SCHED_RR 1
-#define SCHED_SJRF 2
+// scheduler algorithm selection - changed names to avoid conflicts
+#define SCHED_ALG_RR 1
+#define SCHED_ALG_SJRF 2
 
 typedef struct {
     int id;                   // unique task id
@@ -48,7 +48,7 @@ void scheduler_init(void);
 void scheduler_cleanup(void);
 
 // add a task to the queue
-void scheduler_add_task(int client_id, int client_socket, const char *command, int type, int time);
+void scheduler_add_task(int client_id, int client_socket, const char *command, int type, int exec_time);
 
 // get the next task to execute based on the scheduling algorithm
 task_t *scheduler_get_next_task(void);

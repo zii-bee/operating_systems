@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L  // Add this for strdup
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +9,7 @@
 #include "parser.h"
 #include "executor.h"
 #include "pipes.h"
+#include <sys/socket.h>  // Add this for send function
 
 // define scheduler constants
 #define FIRST_ROUND_QUANTUM 3  // quantum for first round (in seconds)
@@ -88,7 +90,7 @@ void scheduler_cleanup(void) {
 }
 
 // add a task to the queue
-void scheduler_add_task(int client_id, int client_socket, const char *command, int type, int time) {
+void scheduler_add_task(int client_id, int client_socket, const char *command, int type, int exec_time) {
     pthread_mutex_lock(&task_queue->lock);
     
     // check if we have space for a new task
@@ -112,12 +114,12 @@ void scheduler_add_task(int client_id, int client_socket, const char *command, i
     task->client_socket = client_socket;
     task->type = type;
     task->command = strdup(command);
-    task->total_time = time;
-    task->remaining_time = time;
+    task->total_time = exec_time;
+    task->remaining_time = exec_time;
     task->state = TASK_STATE_WAITING;
     task->round = 1;
     task->last_executed = 0;
-    task->arrival_time = time(NULL);
+    task->arrival_time = time(NULL);  // Fixed: function call
     task->preempted = 0;
     
     // add the task to the queue
@@ -129,7 +131,7 @@ void scheduler_add_task(int client_id, int client_socket, const char *command, i
         printf("[%d]--- " COLOR_GREEN "created" COLOR_RESET " (-1)\n", client_id);
     } else {
         printf("[%d]>>> %s\n", client_id, command);
-        printf("[%d]--- " COLOR_GREEN "created" COLOR_RESET " (%d)\n", client_id, time);
+        printf("[%d]--- " COLOR_GREEN "created" COLOR_RESET " (%d)\n", client_id, exec_time);
     }
     
     // signal that the queue is not empty
@@ -147,14 +149,14 @@ task_t *scheduler_get_next_task(void) {
     }
     
     task_t *selected_task = NULL;
-    int selected_index = -1;
+    // int selected_index = -1;  // Remove or comment out this line if not used
     
     // first, check for shell commands which have highest priority
     for (int i = 0; i < task_queue->size; i++) {
         if (task_queue->tasks[i]->type == TASK_SHELL_COMMAND && 
             task_queue->tasks[i]->state == TASK_STATE_WAITING) {
             selected_task = task_queue->tasks[i];
-            selected_index = i;
+            // selected_index = i;  // Only if needed
             break;
         }
     }
@@ -177,13 +179,13 @@ task_t *scheduler_get_next_task(void) {
                 if (shortest_time == -1 || task->remaining_time < shortest_time) {
                     shortest_time = task->remaining_time;
                     selected_task = task;
-                    selected_index = i;
+                    // selected_index = i;  // Only if needed
                 }
                 // if remaining times are equal, use FCFS (first come, first served)
                 else if (task->remaining_time == shortest_time && 
                          task->arrival_time < selected_task->arrival_time) {
                     selected_task = task;
-                    selected_index = i;
+                    // selected_index = i;  // Only if needed
                 }
             }
         }
@@ -441,7 +443,7 @@ void execute_demo_program(const char *command, int client_socket, int n, int cli
     }
     
     // send the response to the client
-    if (send(client_socket, response, strlen(response), 0) < 0) {
+    if (send(client_socket, response, strlen(response), 0) < 0) {  // Fixed: changed "sen" to "send"
         perror("send");
     }
     
