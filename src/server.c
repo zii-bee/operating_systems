@@ -11,7 +11,6 @@
 #include "pipes.h"
 #include "server.h"
 #include "thread_handler.h"
-#include "scheduler.h"
 
 // Maximum size of input buffer
 #define MAX_INPUT_SIZE 1024
@@ -22,10 +21,6 @@ static int thread_count = 0;
 pthread_mutex_t thread_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void start_server(int port) {
-    // Initialize the scheduler
-    scheduler_init();
-    scheduler_start();
-    
     // Create socket variables
     int server_socket, client_socket;
     struct sockaddr_in server_addr, client_addr;
@@ -67,7 +62,7 @@ void start_server(int port) {
         exit(EXIT_FAILURE);
     }
     
-    printf("[INFO] Server started with scheduling capabilities, waiting for client connections...\n");
+    printf("[INFO] Server started, waiting for client connections...\n");
     
     // Main server loop to accept and handle client connections
     while (1) {
@@ -114,10 +109,6 @@ void start_server(int port) {
         // Detach the thread so it cleans up automatically when done
         pthread_detach(thread_id);
     }
-    
-    // Clean up scheduler (this code will never be reached in normal operation)
-    scheduler_stop();
-    scheduler_cleanup();
     
     // Close the server socket (this code will never be reached in normal operation)
     close(server_socket);
