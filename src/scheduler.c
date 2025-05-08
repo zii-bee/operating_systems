@@ -408,7 +408,7 @@ void *scheduler_thread_func(void *arg) {
                 // if the task is completed
                 if (task->remaining_time <= 0) {
                     // Print the bytes sent - this should have been tracked when the demo output was sent
-                    // printf("[%d]<<< %zu bytes sent\n", task->client_id, task->bytes_sent);
+                    printf("[%d]<<< %zu bytes sent\n", task->client_id, task->bytes_sent);
                     
                     // Send prompt back to the client
                     const char *prompt = "$ ";
