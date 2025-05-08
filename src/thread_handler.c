@@ -10,6 +10,7 @@
 #include "executor.h"
 #include "pipes.h"
 #include "thread_handler.h"
+#include "scheduler.h"
 
 #define MAX_INPUT_SIZE 1024
 #define MAX_OUTPUT_SIZE 4096
@@ -46,8 +47,6 @@ void execute_shell_command(int client_socket, const char *input, char *client_ip
             return;
         }
     }
-    
-    // for all other commands, we need to capture their output to send back to the client
     
     // first save the current stdout and stderr so we can restore them later
     int stdout_backup = dup(STDOUT_FILENO);
@@ -228,8 +227,8 @@ void *handle_client(void *arg) {
             break;
         }
         
-        // for all other commands, execute them and send results back
-        execute_shell_command(client_socket, input, client_ip, client_port, client_id);
+        // Instead of executing directly, add the command to the scheduler
+        scheduler_add_task(client_id, client_socket, input, client_ip, client_port);
     }
     
     // check if we exited the loop due to an error
@@ -238,6 +237,9 @@ void *handle_client(void *arg) {
         printf("[ERROR] [Client #%d - %s:%d] Error receiving data\n", 
               client_id, client_ip, client_port);
     }
+    
+    // Remove all tasks for this client from the scheduler
+    scheduler_remove_client_tasks(client_id);
     
     // log that the client has disconnected
     printf("[INFO] Client #%d disconnected from %s:%d\n", client_id, client_ip, client_port);

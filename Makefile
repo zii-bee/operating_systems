@@ -7,18 +7,23 @@ COMMON_SRC = src/parser.c src/executor.c src/redirection.c src/pipes.c src/error
 COMMON_OBJ = $(COMMON_SRC:.c=.o)
 
 # server source files
-SERVER_SRC = src/server_main.c src/server.c src/thread_handler.c
+SERVER_SRC = src/server_main.c src/server.c src/thread_handler.c src/scheduler.c
 SERVER_OBJ = $(SERVER_SRC:.c=.o)
 
 # client source files
 CLIENT_SRC = src/client_main.c src/client.c
 CLIENT_OBJ = $(CLIENT_SRC:.c=.o)
 
+# demo program
+DEMO_SRC = src/demo.c
+DEMO_OBJ = $(DEMO_SRC:.c=.o)
+
 # targets
 SERVER_TARGET = server
 CLIENT_TARGET = client
+DEMO_TARGET = demo
 
-all: $(SERVER_TARGET) $(CLIENT_TARGET)
+all: $(SERVER_TARGET) $(CLIENT_TARGET) $(DEMO_TARGET)
 
 # server build
 $(SERVER_TARGET): $(COMMON_OBJ) $(SERVER_OBJ)
@@ -28,9 +33,13 @@ $(SERVER_TARGET): $(COMMON_OBJ) $(SERVER_OBJ)
 $(CLIENT_TARGET): $(COMMON_OBJ) $(CLIENT_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
+# demo program build
+$(DEMO_TARGET): $(DEMO_OBJ)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
 # compile sources to object files
 src/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f src/*.o $(SERVER_TARGET) $(CLIENT_TARGET)
+	rm -f src/*.o $(SERVER_TARGET) $(CLIENT_TARGET) $(DEMO_TARGET)
