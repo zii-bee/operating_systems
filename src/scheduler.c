@@ -119,8 +119,9 @@ void scheduler_add_task(int client_id, int client_socket, const char *command, i
     task->state = TASK_STATE_WAITING;
     task->round = 1;
     task->last_executed = 0;
-    task->arrival_time = time(NULL);  // Fixed: function call
+    task->arrival_time = time(NULL);
     task->preempted = 0;
+    task->bytes_sent = 0;  // Initialize bytes sent to 0
     
     // add the task to the queue
     task_queue->tasks[task_queue->size++] = task;
@@ -149,14 +150,12 @@ task_t *scheduler_get_next_task(void) {
     }
     
     task_t *selected_task = NULL;
-    // int selected_index = -1;  // Remove or comment out this line if not used
     
     // first, check for shell commands which have highest priority
     for (int i = 0; i < task_queue->size; i++) {
         if (task_queue->tasks[i]->type == TASK_SHELL_COMMAND && 
             task_queue->tasks[i]->state == TASK_STATE_WAITING) {
             selected_task = task_queue->tasks[i];
-            // selected_index = i;  // Only if needed
             break;
         }
     }
@@ -179,13 +178,11 @@ task_t *scheduler_get_next_task(void) {
                 if (shortest_time == -1 || task->remaining_time < shortest_time) {
                     shortest_time = task->remaining_time;
                     selected_task = task;
-                    // selected_index = i;  // Only if needed
                 }
                 // if remaining times are equal, use FCFS (first come, first served)
                 else if (task->remaining_time == shortest_time && 
                          task->arrival_time < selected_task->arrival_time) {
                     selected_task = task;
-                    // selected_index = i;  // Only if needed
                 }
             }
         }
@@ -304,7 +301,7 @@ void scheduler_remove_client_tasks(int client_id) {
     pthread_mutex_unlock(&task_queue->lock);
 }
 
-// Updated scheduler_thread_func function in src/scheduler.c
+// main scheduler thread function
 void *scheduler_thread_func(void *arg) {
     (void)arg; // unused parameter
     
@@ -363,18 +360,30 @@ void *scheduler_thread_func(void *arg) {
                     buffer[bytes_read] = '\0';
                     
                     // send output back to the client
-                    if (send(task->client_socket, buffer, bytes_read, 0) < 0) {
+                    ssize_t sent_bytes = send(task->client_socket, buffer, bytes_read, 0);
+                    if (sent_bytes < 0) {
                         perror("send");
+                    } else {
+                        task->bytes_sent += sent_bytes;
                     }
                     
                     // Send an additional newline and prompt
                     const char *prompt = "\n$ ";
-                    send(task->client_socket, prompt, strlen(prompt), 0);
+                    sent_bytes = send(task->client_socket, prompt, strlen(prompt), 0);
+                    if (sent_bytes > 0) {
+                        task->bytes_sent += sent_bytes;
+                    }
                 } else {
                     // If no output, at least send a prompt back to client
                     const char *prompt = "$ ";
-                    send(task->client_socket, prompt, strlen(prompt), 0);
+                    ssize_t sent_bytes = send(task->client_socket, prompt, strlen(prompt), 0);
+                    if (sent_bytes > 0) {
+                        task->bytes_sent += sent_bytes;
+                    }
                 }
+                
+                // Print the bytes sent
+                printf("[%d]<<< %zu bytes sent\n", task->client_id, task->bytes_sent);
                 
                 // mark the task as completed
                 scheduler_complete_task(task);
@@ -398,6 +407,9 @@ void *scheduler_thread_func(void *arg) {
                 
                 // if the task is completed
                 if (task->remaining_time <= 0) {
+                    // Print the bytes sent - this should have been tracked when the demo output was sent
+                    printf("[%d]<<< %zu bytes sent\n", task->client_id, task->bytes_sent);
+                    
                     // Send prompt back to the client
                     const char *prompt = "$ ";
                     send(task->client_socket, prompt, strlen(prompt), 0);
@@ -498,9 +510,40 @@ void execute_demo_program(const char *command, int client_socket, int n, int cli
         strcat(response, line);
     }
     
+    // calculate bytes to send
+    size_t bytes_to_send = strlen(response);
+    
     // send the response to the client
-    if (send(client_socket, response, strlen(response), 0) < 0) {  // Fixed: changed "sen" to "send"
+    ssize_t sent_bytes = send(client_socket, response, bytes_to_send, 0);
+    if (sent_bytes < 0) {
         perror("send");
+    } else {
+        // Update the task's bytes_sent value
+        pthread_mutex_lock(&task_queue->lock);
+        for (int i = 0; i < task_queue->size; i++) {
+            if (task_queue->tasks[i]->client_id == client_id && 
+                strcmp(task_queue->tasks[i]->command, command) == 0) {
+                task_queue->tasks[i]->bytes_sent += sent_bytes;
+                break;
+            }
+        }
+        pthread_mutex_unlock(&task_queue->lock);
+    }
+    
+    // Add a prompt
+    const char *prompt = "$ ";
+    sent_bytes = send(client_socket, prompt, strlen(prompt), 0);
+    if (sent_bytes > 0) {
+        // Update the bytes sent for this task
+        pthread_mutex_lock(&task_queue->lock);
+        for (int i = 0; i < task_queue->size; i++) {
+            if (task_queue->tasks[i]->client_id == client_id && 
+                strcmp(task_queue->tasks[i]->command, command) == 0) {
+                task_queue->tasks[i]->bytes_sent += sent_bytes;
+                break;
+            }
+        }
+        pthread_mutex_unlock(&task_queue->lock);
     }
     
     // after all iterations complete, print the summary

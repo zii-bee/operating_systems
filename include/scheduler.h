@@ -30,6 +30,7 @@ typedef struct {
     int last_executed;        // flag to avoid consecutive execution
     time_t arrival_time;      // when the task was submitted
     int preempted;            // whether this task was preempted
+    size_t bytes_sent;        // bytes sent for this task
 } task_t;
 
 typedef struct {
