@@ -408,7 +408,7 @@ void *scheduler_thread_func(void *arg) {
                 // if the task is completed
                 if (task->remaining_time <= 0) {
                     // Print the bytes sent - this should have been tracked when the demo output was sent
-                    printf("[%d]<<< %zu bytes sent\n", task->client_id, task->bytes_sent);
+                    // printf("[%d]<<< %zu bytes sent\n", task->client_id, task->bytes_sent);
                     
                     // Send prompt back to the client
                     const char *prompt = "$ ";
@@ -523,7 +523,10 @@ void execute_demo_program(const char *command, int client_socket, int n, int cli
         for (int i = 0; i < task_queue->size; i++) {
             if (task_queue->tasks[i]->client_id == client_id && 
                 strcmp(task_queue->tasks[i]->command, command) == 0) {
-                task_queue->tasks[i]->bytes_sent += sent_bytes;
+                task_queue->tasks[i]->bytes_sent = sent_bytes; // Just set it directly
+                
+                // Print the bytes sent here immediately
+                printf("[%d]<<< %zu bytes sent\n", client_id, sent_bytes);
                 break;
             }
         }
@@ -534,16 +537,8 @@ void execute_demo_program(const char *command, int client_socket, int n, int cli
     const char *prompt = "$ ";
     sent_bytes = send(client_socket, prompt, strlen(prompt), 0);
     if (sent_bytes > 0) {
-        // Update the bytes sent for this task
-        pthread_mutex_lock(&task_queue->lock);
-        for (int i = 0; i < task_queue->size; i++) {
-            if (task_queue->tasks[i]->client_id == client_id && 
-                strcmp(task_queue->tasks[i]->command, command) == 0) {
-                task_queue->tasks[i]->bytes_sent += sent_bytes;
-                break;
-            }
-        }
-        pthread_mutex_unlock(&task_queue->lock);
+        // We don't need to track these bytes for the display
+        // as they are just the prompt, not the actual content
     }
     
     // after all iterations complete, print the summary
