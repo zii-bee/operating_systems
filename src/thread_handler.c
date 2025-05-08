@@ -65,9 +65,7 @@ void *handle_client(void *arg) {
         }
         
         // process received command
-        handle_command(client_socket, input, client_id, 
-                      inet_ntoa(info->client_addr.sin_addr),
-                      ntohs(info->client_addr.sin_port));
+        handle_command(client_socket, input, client_id);
     }
     
     // cleanup when client disconnects
