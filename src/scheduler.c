@@ -11,23 +11,26 @@
 #include "pipes.h"
 #include <sys/socket.h>
 
-#define FIRST_ROUND_QUANTUM 3
-#define OTHER_ROUNDS_QUANTUM 7
+// quantum timing for round robin scheduling
+#define FIRST_ROUND_QUANTUM 3   // first round gets 3 seconds
+#define OTHER_ROUNDS_QUANTUM 7  // subsequent rounds get 7 seconds
 #define MAX_TASKS 100
 #define BUFFER_SIZE 4096
 
+// global scheduler variables
 static task_queue_t *task_queue = NULL;
 static pthread_t scheduler_thread;
 static int scheduler_running = 0;
 static int next_task_id = 1;
 
+// color codes for output formatting
 #define COLOR_RED     "\033[1;31m"
 #define COLOR_GREEN   "\033[1;32m"
 #define COLOR_YELLOW  "\033[1;33m"
 #define COLOR_BLUE    "\033[1;34m"
 #define COLOR_RESET   "\033[0m"
 
-// Print task queue summary in blue
+// prints the blue summary of tasks in format [client_id]-[remaining_time]
 static void print_task_summary(void) {
     pthread_mutex_lock(&task_queue->lock);
     printf(COLOR_BLUE);
@@ -41,6 +44,7 @@ static void print_task_summary(void) {
     pthread_mutex_unlock(&task_queue->lock);
 }
 
+// sends output to client and tracks bytes sent
 static void send_to_client(task_t *task, const char *output, int send_prompt) {
     if (!output || !task) return;
     ssize_t bytes_to_send = strlen(output);
@@ -56,22 +60,7 @@ static void send_to_client(task_t *task, const char *output, int send_prompt) {
     }
 }
 
-void scheduler_init(void) {
-    task_queue = malloc(sizeof(task_queue_t));
-    if (!task_queue) {
-        perror("malloc failed for task queue");
-        exit(EXIT_FAILURE);
-    }
-    
-    task_queue->tasks = malloc(MAX_TASKS * sizeof(task_t *));
-    task_queue->capacity = MAX_TASKS;
-    task_queue->size = 0;
-    task_queue->current_round = 1;
-    
-    pthread_mutex_init(&task_queue->lock, NULL);
-    pthread_cond_init(&task_queue->not_empty, NULL);
-}
-
+// get next task based on scheduling algorithm
 task_t *scheduler_get_next_task(void) {
     pthread_mutex_lock(&task_queue->lock);
     
@@ -81,7 +70,7 @@ task_t *scheduler_get_next_task(void) {
     
     task_t *selected_task = NULL;
     
-    // First priority: Shell commands
+    // part 1: shell commands get highest priority (always run first)
     for (int i = 0; i < task_queue->size; i++) {
         if (task_queue->tasks[i]->type == TASK_SHELL_COMMAND && 
             task_queue->tasks[i]->state == TASK_STATE_WAITING) {
@@ -90,14 +79,16 @@ task_t *scheduler_get_next_task(void) {
         }
     }
     
-    // Second priority: SJRF with consecutive restriction
+    // part 2: sjrf (shortest job remaining first) implementation
     if (!selected_task) {
         int shortest_time = -1;
         for (int i = 0; i < task_queue->size; i++) {
             task_t *task = task_queue->tasks[i];
             if (task->state == TASK_STATE_WAITING) {
+                // implement consecutive restriction (part of rr)
                 if (task->last_executed && task_queue->size > 1) continue;
                 
+                // select shortest remaining time
                 if (shortest_time == -1 || task->remaining_time < shortest_time) {
                     shortest_time = task->remaining_time;
                     selected_task = task;
@@ -108,6 +99,7 @@ task_t *scheduler_get_next_task(void) {
     
     if (selected_task) {
         selected_task->state = TASK_STATE_RUNNING;
+        // reset last_executed flags (part of rr implementation)
         for (int i = 0; i < task_queue->size; i++) {
             task_queue->tasks[i]->last_executed = 0;
         }
@@ -122,14 +114,16 @@ task_t *scheduler_get_next_task(void) {
     return selected_task;
 }
 
+// update task state after execution
 void scheduler_update_task(task_t *task, int time_executed) {
     pthread_mutex_lock(&task_queue->lock);
     
     if (task->type == TASK_PROGRAM) {
         task->remaining_time -= time_executed;
         if (task->remaining_time > 0) {
+            // task still has work - move to waiting state
             task->state = TASK_STATE_WAITING;
-            task->round++;
+            task->round++;  // increment round for rr quantum
             task->preempted = 1;
             printf("[%d]--- " COLOR_YELLOW "waiting" COLOR_RESET " (%d)\n", 
                    task->client_id, task->remaining_time);
@@ -139,14 +133,17 @@ void scheduler_update_task(task_t *task, int time_executed) {
     pthread_mutex_unlock(&task_queue->lock);
 }
 
+// main scheduler thread implementation
 void *scheduler_thread_func(void *arg) {
     while (scheduler_running) {
         task_t *task = scheduler_get_next_task();
         if (!task) continue;
 
+        // implement rr quantum based on round number
         int quantum = (task->round == 1) ? FIRST_ROUND_QUANTUM : OTHER_ROUNDS_QUANTUM;
 
         if (task->type == TASK_SHELL_COMMAND) {
+            // handle shell commands by capturing output
             int stdout_backup = dup(STDOUT_FILENO);
             int stderr_backup = dup(STDERR_FILENO);
             int pipefd[2];
@@ -186,6 +183,7 @@ void *scheduler_thread_func(void *arg) {
             print_task_summary();
             
         } else if (task->type == TASK_PROGRAM) {
+            // handle program execution with quantum time slicing
             int time_to_execute = (task->remaining_time < quantum) ? 
                                  task->remaining_time : quantum;
             
@@ -195,6 +193,7 @@ void *scheduler_thread_func(void *arg) {
                 task->preempted = 0;
             }
             
+            // simulate program execution with output
             char buffer[BUFFER_SIZE] = {0};
             for (int i = 0; i < time_to_execute; i++) {
                 char line[64];
