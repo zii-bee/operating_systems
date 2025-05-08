@@ -5,13 +5,15 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/select.h>  // Add this for select() and fd_set
+#include <sys/time.h>    // Add this for struct timeval
+#include <sys/types.h>   // Add this for additional types
 #include "client.h"
 
 // maximum size of input buffer
 #define MAX_INPUT_SIZE 1024
 #define MAX_OUTPUT_SIZE 4096 // maximum size of output buffer
 
-// Update client.c's start_client function to better handle prompts
 void start_client(const char *ip, int port) {
     // create socket variables
     int client_socket;
